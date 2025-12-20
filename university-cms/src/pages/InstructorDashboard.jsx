@@ -301,7 +301,7 @@ const InstructorDashboard = () => {
           {
             ...newCourse,
             instructor_id: user.id,
-            student_count: 0,
+            students: 0,
           }
         ]);
 
@@ -680,7 +680,7 @@ const InstructorDashboard = () => {
     }
   };
 
-  const totalStudents = courses.reduce((sum, course) => sum + (course.student_count || 0), 0);
+  const totalStudents = courses.reduce((sum, course) => sum + (course.students || 0), 0);
 
   if (loading) {
     return (
@@ -768,7 +768,7 @@ const InstructorDashboard = () => {
                     <strong>Duration:</strong> {course.duration}
                   </p>
                   <p className="text-sm text-gray-500">
-                    <strong>Students:</strong> {course.student_count || 0}
+                    <strong>Students:</strong> {course.students || 0}
                   </p>
                 </div>
 
@@ -785,7 +785,7 @@ const InstructorDashboard = () => {
                     className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-1 text-sm relative"
                   >
                     <Users className="w-4 h-4" />
-                    Students ({course.student_count || 0})
+                    Students ({course.students || 0})
                   </button>
                   <button
                     onClick={() => showAttendanceModal(course)}

@@ -134,6 +134,56 @@ const AdminDashboard = () => {
     }
 
     try {
+      // First, delete or update dependent records
+      // Delete exams created by this instructor
+      await supabase
+        .from('exams')
+        .delete()
+        .eq('created_by', userId);
+
+      // Delete announcements created by this instructor
+      await supabase
+        .from('announcements')
+        .delete()
+        .eq('instructor_id', userId);
+
+      // Delete courses taught by this instructor
+      await supabase
+        .from('courses')
+        .delete()
+        .eq('instructor_id', userId);
+
+      // Set graded_by to NULL in grades where this instructor is the grader
+      await supabase
+        .from('grades')
+        .update({ graded_by: null })
+        .eq('graded_by', userId);
+
+      // Set graded_by to NULL in exam_results where this instructor is the grader
+      await supabase
+        .from('exam_results')
+        .update({ graded_by: null })
+        .eq('graded_by', userId);
+
+      // Set marked_by to NULL in attendance where this instructor marked
+      await supabase
+        .from('attendance')
+        .update({ marked_by: null })
+        .eq('marked_by', userId);
+
+      // Set uploaded_by to NULL in materials
+      await supabase
+        .from('materials')
+        .update({ uploaded_by: null })
+        .eq('uploaded_by', userId);
+
+      // Set uploaded_by to NULL in course_videos
+      await supabase
+        .from('course_videos')
+        .update({ uploaded_by: null })
+        .eq('uploaded_by', userId);
+
+      // Finally, delete the user profile
       const { error } = await supabase
         .from('profiles')
         .delete()
