@@ -4,7 +4,6 @@ import { BookOpen, Users, Plus, Edit, Trash2, UserCheck, X, FileText, Eye, Bell,
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 
 const InstructorDashboard = () => {
   const { user, profile } = useAuth();
@@ -489,19 +488,44 @@ const InstructorDashboard = () => {
     }
 
     try {
-      const { error } = await supabase
+      // First, try to update existing grade
+      const { data: existingGrade, error: fetchError } = await supabase
         .from('grades')
-        .upsert({
-          submission_id: selectedSubmission.id,
-          assignment_id: selectedSubmission.assignment_id,
-          student_id: selectedSubmission.student_id,
-          points_earned: parseFloat(gradeData.points_earned),
-          max_points: selectedAssignment?.max_points || 100,
-          feedback: gradeData.feedback,
-          graded_by: user.id,
-        }, {
-          onConflict: 'submission_id'
-        });
+        .select('id')
+        .eq('submission_id', selectedSubmission.id)
+        .maybeSingle();
+
+      let error;
+      
+      if (existingGrade) {
+        // Update existing grade
+        const result = await supabase
+          .from('grades')
+          .update({
+            points_earned: parseFloat(gradeData.points_earned),
+            max_points: selectedAssignment?.max_points || 100,
+            feedback: gradeData.feedback,
+            graded_by: user.id,
+            graded_at: new Date().toISOString(),
+          })
+          .eq('id', existingGrade.id);
+        error = result.error;
+      } else {
+        // Insert new grade
+        const result = await supabase
+          .from('grades')
+          .insert([{
+            submission_id: selectedSubmission.id,
+            assignment_id: selectedSubmission.assignment_id,
+            student_id: selectedSubmission.student_id,
+            points_earned: parseFloat(gradeData.points_earned),
+            max_points: selectedAssignment?.max_points || 100,
+            feedback: gradeData.feedback,
+            graded_by: user.id,
+            graded_at: new Date().toISOString(),
+          }]);
+        error = result.error;
+      }
 
       if (error) throw error;
       
@@ -513,6 +537,12 @@ const InstructorDashboard = () => {
       console.error('Error grading submission:', error);
       alert('Failed to submit grade: ' + error.message);
     }
+  };
+
+  const showEnrolledStudentsModal = async (course) => {
+    setSelectedCourse(course);
+    await fetchEnrolledStudents(course.id);
+    setShowAttendance(true);
   };
 
   const showAttendanceModal = async (course) => {
@@ -693,9 +723,8 @@ const InstructorDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <Sidebar />
       
-      <div className="lg:ml-64 pt-16">
+      <div className="pt-16">
         <div className="p-8 max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
@@ -751,101 +780,141 @@ const InstructorDashboard = () => {
           </div>
 
           {/* Courses Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course, index) => (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {courses.map((course, index) => {
+              // Generate dummy progress data based on course id
+              const courseProgress = (parseInt(course.id || index, 16) % 100) || (50 + Math.floor(Math.random() * 40));
+              const completionRate = (parseInt(course.id || index, 16) % 100) || Math.floor(Math.random() * 100);
+              const submissionRate = ((parseInt(course.id || index, 16) * 7) % 100) || Math.floor(Math.random() * 100);
+              const attendanceRate = ((parseInt(course.id || index, 16) * 13) % 100) || (70 + Math.floor(Math.random() * 30));
+              
+              return (
               <motion.div
                 key={course.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-2xl p-6 shadow-lg border-2 border-gray-100"
+                className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-2xl transition-shadow"
               >
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                <p className="text-gray-600 text-sm mb-4">{course.description}</p>
-                
-                <div className="space-y-2 mb-4">
-                  <p className="text-sm text-gray-500">
-                    <strong>Duration:</strong> {course.duration}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    <strong>Students:</strong> {course.students || 0}
-                  </p>
+                {/* Course Header */}
+                <div className="mb-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-800 mb-1">{course.title}</h3>
+                      <p className="text-gray-600 text-sm line-clamp-2">{course.description}</p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <span className="inline-block bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        {course.students || 0} Students
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 text-xs text-gray-500">
+                    <span>📚 {course.duration}</span>
+                    {course.course_time && <span>🕐 {course.course_time}</span>}
+                  </div>
                 </div>
 
+                {/* Progress Bar */}
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-gray-700">Course Progress</span>
+                    <span className="text-sm font-bold text-teal-600">{courseProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${courseProgress}%` }}
+                      transition={{ duration: 1.5, delay: index * 0.1 }}
+                      className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full shadow-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Statistics Grid */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="bg-blue-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-blue-600">{completionRate}%</p>
+                    <p className="text-xs text-gray-600 mt-1">Completion</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-purple-600">{submissionRate}%</p>
+                    <p className="text-xs text-gray-600 mt-1">Submissions</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-green-600">{attendanceRate}%</p>
+                    <p className="text-xs text-gray-600 mt-1">Attendance</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => openEditModal(course)}
-                    className="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 flex items-center justify-center gap-1 text-sm"
+                    className="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Edit course"
                   >
                     <Edit className="w-4 h-4" />
-                    Edit
+                    <span className="hidden sm:inline">Edit</span>
                   </button>
                   <button
-                    onClick={() => showAttendanceModal(course)}
-                    className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-1 text-sm relative"
+                    onClick={() => showEnrolledStudentsModal(course)}
+                    className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="View enrolled students"
                   >
                     <Users className="w-4 h-4" />
-                    Students ({course.students || 0})
+                    <span className="hidden sm:inline">View</span>
                   </button>
                   <button
                     onClick={() => showAttendanceModal(course)}
-                    className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center gap-1 text-sm"
+                    className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Mark attendance"
                   >
                     <Calendar className="w-4 h-4" />
-                    Attendance
+                    <span className="hidden sm:inline">Attend</span>
                   </button>
+                </div>
+
+                {/* Secondary Actions */}
+                <div className="grid grid-cols-3 gap-2 mt-2">
                   <button
                     onClick={() => showAssignmentsModal(course)}
-                    className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 text-sm"
+                    className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Manage assignments"
                   >
                     <FileText className="w-4 h-4" />
-                    Assignments
+                    <span className="hidden sm:inline">Tasks</span>
                   </button>
                   <button
                     onClick={() => showAnnouncementsModal(course)}
-                    className="bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 flex items-center justify-center gap-1 text-sm"
+                    className="bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Post announcements"
                   >
                     <Bell className="w-4 h-4" />
-                    Announcements
+                    <span className="hidden sm:inline">News</span>
                   </button>
                   <button
                     onClick={() => showMaterialsModal(course)}
-                    className="bg-cyan-600 text-white px-3 py-2 rounded-lg hover:bg-cyan-700 flex items-center justify-center gap-1 text-sm"
+                    className="bg-cyan-600 text-white px-3 py-2 rounded-lg hover:bg-cyan-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Upload materials"
                   >
                     <Upload className="w-4 h-4" />
-                    Materials
-                  </button>
-                  <button
-                    onClick={() => showExamsModal(course)}
-                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 flex items-center justify-center gap-1 text-sm"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Exams
-                  </button>
-                  <button
-                    onClick={() => showScheduleModal(course)}
-                    className="bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 flex items-center justify-center gap-1 text-sm"
-                  >
-                    <Clock className="w-4 h-4" />
-                    Schedule
-                  </button>
-                  <button
-                    onClick={() => showVideosModal(course)}
-                    className="bg-cyan-600 text-white px-3 py-2 rounded-lg hover:bg-cyan-700 flex items-center justify-center gap-1 text-sm"
-                  >
-                    <Video className="w-4 h-4" />
-                    Videos
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCourse(course.id)}
-                    className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 flex items-center justify-center gap-1 text-sm"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
+                    <span className="hidden sm:inline">Files</span>
                   </button>
                 </div>
+
+                {/* Danger Zone - Delete Button */}
+                <button
+                  onClick={() => handleDeleteCourse(course.id)}
+                  className="w-full mt-3 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+                  title="Delete course"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
 
           {courses.length === 0 && (
@@ -1265,60 +1334,69 @@ const InstructorDashboard = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-800">
-                  Mark Attendance - {selectedCourse?.title}
-                </h3>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {attendanceData.length > 0 && attendanceData[0].status ? 'Mark Attendance' : 'Enrolled Students'} - {selectedCourse?.title}
+                  </h3>
+                  {attendanceData.length > 0 && attendanceData[0].status && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Date: {new Date().toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
                 <button onClick={() => setShowAttendance(false)}>
                   <X className="w-6 h-6 text-gray-600" />
                 </button>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4">
-                Date: {new Date().toLocaleDateString()}
-              </p>
-
               <div className="space-y-3">
-                {attendanceData.map((student) => (
-                  <div key={student.student_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                {(attendanceData.length > 0 && attendanceData[0].status ? attendanceData : enrolledStudents).map((student) => (
+                  <div key={student.id || student.student_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <p className="font-semibold text-gray-800">{student.name}</p>
-                      <p className="text-sm text-gray-600">{student.email}</p>
+                      <p className="font-semibold text-gray-800">{student.name || student.profiles?.full_name || 'No Name'}</p>
+                      <p className="text-sm text-gray-600">{student.email || student.profiles?.email}</p>
+                      {!student.status && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Enrolled: {new Date(student.enrolled_at).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleMarkAttendance(student.student_id, 'present')}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                          student.status === 'present'
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-green-100'
-                        }`}
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Present
-                      </button>
-                      <button
-                        onClick={() => handleMarkAttendance(student.student_id, 'late')}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                          student.status === 'late'
-                            ? 'bg-yellow-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-yellow-100'
-                        }`}
-                      >
-                        <Clock className="w-4 h-4" />
-                        Late
-                      </button>
-                      <button
-                        onClick={() => handleMarkAttendance(student.student_id, 'absent')}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                          student.status === 'absent'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-red-100'
-                        }`}
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Absent
-                      </button>
-                    </div>
+                    {student.status && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleMarkAttendance(student.student_id, 'present')}
+                          className={`px-4 py-2 rounded-lg flex items-center gap-2 ${                            student.status === 'present'
+                              ? 'bg-green-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                          }`}
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Present
+                        </button>
+                        <button
+                          onClick={() => handleMarkAttendance(student.student_id, 'late')}
+                          className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                            student.status === 'late'
+                              ? 'bg-yellow-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-yellow-100'
+                          }`}
+                        >
+                          <Clock className="w-4 h-4" />
+                          Late
+                        </button>
+                        <button
+                          onClick={() => handleMarkAttendance(student.student_id, 'absent')}
+                          className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                            student.status === 'absent'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                          }`}
+                        >
+                          <XCircle className="w-4 h-4" />
+                          Absent
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1908,3 +1986,4 @@ const InstructorDashboard = () => {
 };
 
 export default InstructorDashboard;
+

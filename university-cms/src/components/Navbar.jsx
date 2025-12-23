@@ -30,7 +30,6 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-1">
-            <NavLink to="/">Home</NavLink>
             <NavLink to="/dashboard">Dashboard</NavLink>
             <NavLink to="/courses">Courses</NavLink>
             <NavLink to="/students">Students</NavLink>

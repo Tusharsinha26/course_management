@@ -4,7 +4,6 @@ import { Search, Plus, Users, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 
 const Courses = () => {
   const { user, profile } = useAuth();
@@ -152,9 +151,8 @@ const Courses = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <Sidebar />
       
-      <div className="lg:ml-64 pt-16">
+      <div className="pt-16">
         <div className="p-8 max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: -20 }}

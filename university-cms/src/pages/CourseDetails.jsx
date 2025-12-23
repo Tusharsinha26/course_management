@@ -2,7 +2,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Upload, FileText, Calendar } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 
 const CourseDetails = () => {
   const { id } = useParams();
@@ -27,9 +26,8 @@ const CourseDetails = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <Sidebar />
       
-      <div className="lg:ml-64 pt-16">
+      <div className="pt-16">
         <div className="p-8 max-w-7xl mx-auto">
           {/* Back Button */}
           <motion.button

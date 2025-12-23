@@ -2,31 +2,36 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { GraduationCap, Search, Mail, BookOpen } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 
 const Instructors = () => {
+  const { user } = useAuth();
   const [instructors, setInstructors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchInstructors();
-  }, []);
+  }, [user]);
 
   const fetchInstructors = async () => {
+    if (!user) return;
+    
     try {
+      // Fetch only the logged-in instructor
       const { data, error } = await supabase
         .from('profiles')
         .select(`
           *,
           courses:courses!instructor_id(count)
         `)
+        .eq('id', user.id)
         .eq('role', 'instructor')
-        .order('full_name', { ascending: true });
+        .single();
 
       if (error) throw error;
-      setInstructors(data || []);
+      setInstructors(data ? [data] : []);
     } catch (error) {
       console.error('Error fetching instructors:', error);
     } finally {
@@ -50,9 +55,8 @@ const Instructors = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <Sidebar />
       
-      <div className="lg:ml-64 pt-16">
+      <div className="pt-16">
         <div className="p-8 max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: -20 }}

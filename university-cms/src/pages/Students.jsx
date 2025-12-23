@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Users, Search, Mail } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 
 const Students = () => {
   const [students, setStudents] = useState([]);
@@ -47,9 +46,8 @@ const Students = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <Sidebar />
       
-      <div className="lg:ml-64 pt-16">
+      <div className="pt-16">
         <div className="p-8 max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: -20 }}

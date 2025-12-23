@@ -4,7 +4,6 @@ import { Users, BookOpen, UserPlus, GraduationCap, Trash2, Edit, X, Plus } from 
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -292,9 +291,8 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <Sidebar />
       
-      <div className="lg:ml-64 pt-16">
+      <div className="pt-16">
         <div className="p-8 max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
