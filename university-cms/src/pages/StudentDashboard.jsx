@@ -461,11 +461,12 @@ const StudentDashboard = () => {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {enrolledCourses.map((enrollment, index) => {
-                  // Generate dummy progress data based on enrollment id
-                  const courseProgress = (parseInt(enrollment.id || index, 16) % 100) || (50 + Math.floor(Math.random() * 40));
-                  const completionRate = (parseInt(enrollment.id || index, 16) % 100) || Math.floor(Math.random() * 100);
-                  const submissionRate = ((parseInt(enrollment.id || index, 16) * 7) % 100) || Math.floor(Math.random() * 100);
-                  const attendanceRate = ((parseInt(enrollment.id || index, 16) * 13) % 100) || (70 + Math.floor(Math.random() * 30));
+                  // Use stored course progress when available; default to 0 for new enrollments
+                  const storedProgress = enrollment.courses?.progress;
+                  const courseProgress = typeof storedProgress === 'number' ? Math.max(0, Math.min(100, Math.round(storedProgress))) : 0;
+                  const completionRate = courseProgress;
+                  const submissionRate = Math.max(0, Math.min(100, Math.floor(courseProgress * 0.8)));
+                  const attendanceRate = Math.max(0, Math.min(100, Math.floor(courseProgress * 0.9)));
                   
                   return (
                   <motion.div

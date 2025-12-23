@@ -4,7 +4,7 @@ import { GraduationCap, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, profile } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -33,7 +33,11 @@ const Navbar = () => {
             <NavLink to="/dashboard">Dashboard</NavLink>
             <NavLink to="/courses">Courses</NavLink>
             <NavLink to="/students">Students</NavLink>
-            <NavLink to="/instructors">Instructors</NavLink>
+            {profile?.role === 'instructor' ? (
+              <NavLink to="/timetable">Timetable</NavLink>
+            ) : (
+              <NavLink to="/instructors">Instructors</NavLink>
+            )}
           </div>
 
           {/* User Profile */}
