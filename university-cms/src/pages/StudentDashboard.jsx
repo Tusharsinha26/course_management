@@ -375,15 +375,7 @@ const StudentDashboard = () => {
               <Calendar className="w-5 h-5" />
               My Attendance
             </button>
-            <button
-              onClick={() => setActiveTab('timetable')}
-              className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap flex items-center gap-2 ${
-                activeTab === 'timetable' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <Clock className="w-5 h-5" />
-              Timetable
-            </button>
+            {/* Timetable removed per user request */}
             <button
               onClick={() => setActiveTab('exams')}
               className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap flex items-center gap-2 ${
@@ -922,53 +914,7 @@ const StudentDashboard = () => {
             </motion.div>
           )}
 
-          {/* Timetable Tab */}
-          {activeTab === 'timetable' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-white rounded-2xl shadow-lg p-6"
-            >
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Weekly Timetable</h2>
-              {timetable.length === 0 ? (
-                <div className="text-center py-8">
-                  <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No schedule available yet.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Day</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Course</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Time</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border">Room</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timetable.map((schedule) => (
-                        <tr key={schedule.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-4 border text-gray-800 font-semibold">
-                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.day_of_week]}
-                          </td>
-                          <td className="px-4 py-4 border text-gray-800">
-                            {schedule.courses?.title}
-                          </td>
-                          <td className="px-4 py-4 border text-gray-700">
-                            {schedule.start_time} - {schedule.end_time}
-                          </td>
-                          <td className="px-4 py-4 border text-gray-600">
-                            {schedule.room || 'TBA'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </motion.div>
-          )}
+          {/* Timetable removed per user request */}
 
           {/* Exams Tab */}
           {activeTab === 'exams' && (

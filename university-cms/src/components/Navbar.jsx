@@ -33,11 +33,7 @@ const Navbar = () => {
             <NavLink to="/dashboard">Dashboard</NavLink>
             <NavLink to="/courses">Courses</NavLink>
             <NavLink to="/students">Students</NavLink>
-            {profile?.role === 'instructor' ? (
-              <NavLink to="/timetable">Timetable</NavLink>
-            ) : (
-              <NavLink to="/instructors">Instructors</NavLink>
-            )}
+            <NavLink to="/instructors">Instructors</NavLink>
           </div>
 
           {/* User Profile */}

@@ -19,19 +19,18 @@ const Instructors = () => {
     if (!user) return;
     
     try {
-      // Fetch only the logged-in instructor
+      // Fetch all instructors (students should see all faculty)
       const { data, error } = await supabase
         .from('profiles')
         .select(`
           *,
           courses:courses!instructor_id(count)
         `)
-        .eq('id', user.id)
         .eq('role', 'instructor')
-        .single();
+        .order('full_name', { ascending: true });
 
       if (error) throw error;
-      setInstructors(data ? [data] : []);
+      setInstructors(data || []);
     } catch (error) {
       console.error('Error fetching instructors:', error);
     } finally {

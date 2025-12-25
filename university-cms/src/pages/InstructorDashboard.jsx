@@ -16,7 +16,6 @@ const InstructorDashboard = () => {
   const [showMaterials, setShowMaterials] = useState(false);
   const [showGrading, setShowGrading] = useState(false);
   const [showExams, setShowExams] = useState(false);
-  const [showSchedule, setShowSchedule] = useState(false);
   const [showVideos, setShowVideos] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
@@ -28,7 +27,7 @@ const InstructorDashboard = () => {
   const [materials, setMaterials] = useState([]);
   const [attendanceData, setAttendanceData] = useState([]);
   const [exams, setExams] = useState([]);
-  const [schedules, setSchedules] = useState([]);
+  
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingCourse, setEditingCourse] = useState(null);
@@ -37,9 +36,10 @@ const InstructorDashboard = () => {
     title: '',
     description: '',
     duration: '12 weeks',
-    image_url: '',
     course_time: '',
+    image_url: '',
   });
+  const [courseImage, setCourseImage] = useState(null);
 
   const [newAssignment, setNewAssignment] = useState({
     title: '',
@@ -74,14 +74,6 @@ const InstructorDashboard = () => {
     total_marks: 100,
     room: '',
   });
-
-  const [newSchedule, setNewSchedule] = useState({
-    day_of_week: 1,
-    start_time: '',
-    end_time: '',
-    room: '',
-  });
-
   const [newVideo, setNewVideo] = useState({
     title: '',
     description: '',
@@ -94,19 +86,39 @@ const InstructorDashboard = () => {
   }, [user]);
 
   const fetchInstructorData = async () => {
-    if (!user) return;
+    if (!user || !user.id) {
+      console.warn('User not available or no user ID');
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log('Fetching courses for instructor:', user.id);
       const { data, error } = await supabase
         .from('courses')
         .select('*')
         .eq('instructor_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setCourses(data || []);
+      if (error) {
+        console.error('Error fetching courses:', error);
+        throw error;
+      }
+      
+      console.log('Courses fetched:', data?.length || 0);
+      // Robust filter: some deployments store instructor_id as profile.id (UUID)
+      // while others used email or a different identifier. Ensure instructors
+      // only see their own courses by matching common identifier formats.
+      const filtered = (data || []).filter((course) => {
+        const instructorId = course.instructor_id;
+        if (!instructorId) return false;
+        // Match by profile id (UUID) or by email as a fallback
+        return instructorId === user.id || instructorId === user.email;
+      });
+      setCourses(filtered);
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error('Error fetching instructor courses:', error);
+      alert('Failed to load courses: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -256,21 +268,7 @@ const InstructorDashboard = () => {
       console.error('Error fetching exams:', error);
     }
   };
-
-  const fetchSchedules = async (courseId) => {
-    try {
-      const { data, error } = await supabase
-        .from('course_schedule')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('day_of_week', { ascending: true });
-      
-      if (error) throw error;
-      setSchedules(data || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-    }
-  };
+  
 
   const fetchVideos = async (courseId) => {
     try {
@@ -287,6 +285,29 @@ const InstructorDashboard = () => {
     }
   };
 
+  const handleCourseImageUpload = async (file) => {
+    if (!file) return;
+
+    try {
+      const fileName = `course-image-${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('course-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('course-images')
+        .getPublicUrl(fileName);
+
+      setNewCourse({ ...newCourse, image_url: publicUrl });
+      setCourseImage(file);
+    } catch (error) {
+      console.error('Error uploading course image:', error);
+      alert('Failed to upload image: ' + error.message);
+    }
+  };
+
   const handleAddCourse = async () => {
     if (!newCourse.title) {
       alert('Please enter course title');
@@ -298,16 +319,22 @@ const InstructorDashboard = () => {
         .from('courses')
         .insert([
           {
-            ...newCourse,
+            title: newCourse.title,
+            description: newCourse.description,
+            duration: newCourse.duration,
+            course_time: newCourse.course_time,
+            image_url: newCourse.image_url || null,
             instructor_id: user.id,
             students: 0,
+            progress: 0,
           }
         ]);
 
       if (error) throw error;
 
       setShowAddCourse(false);
-      setNewCourse({ title: '', description: '', duration: '12 weeks' });
+      setNewCourse({ title: '', description: '', duration: '12 weeks', course_time: '', image_url: '' });
+      setCourseImage(null);
       fetchInstructorData();
       alert('Course added successfully!');
     } catch (error) {
@@ -329,6 +356,7 @@ const InstructorDashboard = () => {
           title: newCourse.title,
           description: newCourse.description,
           duration: newCourse.duration,
+          course_time: newCourse.course_time,
         })
         .eq('id', editingCourse.id);
 
@@ -336,7 +364,7 @@ const InstructorDashboard = () => {
 
       setShowAddCourse(false);
       setEditingCourse(null);
-      setNewCourse({ title: '', description: '', duration: '12 weeks' });
+      setNewCourse({ title: '', description: '', duration: '12 weeks', course_time: '' });
       fetchInstructorData();
       alert('Course updated successfully!');
     } catch (error) {
@@ -603,11 +631,7 @@ const InstructorDashboard = () => {
     setShowExams(true);
   };
 
-  const showScheduleModal = async (course) => {
-    setSelectedCourse(course);
-    await fetchSchedules(course.id);
-    setShowSchedule(true);
-  };
+  // Schedule feature removed
 
   const showVideosModal = async (course) => {
     setSelectedCourse(course);
@@ -649,35 +673,7 @@ const InstructorDashboard = () => {
     }
   };
 
-  const handleAddSchedule = async () => {
-    if (!newSchedule.start_time || !newSchedule.end_time) {
-      alert('Please fill all required fields');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('course_schedule')
-        .insert([{
-          course_id: selectedCourse.id,
-          ...newSchedule
-        }]);
-
-      if (error) throw error;
-
-      alert('Schedule added successfully!');
-      setNewSchedule({
-        day_of_week: 1,
-        start_time: '',
-        end_time: '',
-        room: '',
-      });
-      await fetchSchedules(selectedCourse.id);
-    } catch (error) {
-      console.error('Error adding schedule:', error);
-      alert('Failed to add schedule');
-    }
-  };
+  // Schedule creation removed
 
   const handleAddVideo = async () => {
     if (!newVideo.title || !newVideo.video_url) {
@@ -782,11 +778,14 @@ const InstructorDashboard = () => {
           {/* Courses Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {courses.map((course, index) => {
-              // Generate dummy progress data based on course id
-              const courseProgress = (parseInt(course.id || index, 16) % 100) || (50 + Math.floor(Math.random() * 40));
-              const completionRate = (parseInt(course.id || index, 16) % 100) || Math.floor(Math.random() * 100);
-              const submissionRate = ((parseInt(course.id || index, 16) * 7) % 100) || Math.floor(Math.random() * 100);
-              const attendanceRate = ((parseInt(course.id || index, 16) * 13) % 100) || (70 + Math.floor(Math.random() * 30));
+              // Use stored progress when available; default to 0 for new courses
+              const storedProgress = typeof course.progress === 'number'
+                ? Math.max(0, Math.min(100, Math.round(course.progress)))
+                : 0;
+              const courseProgress = storedProgress;
+              const completionRate = storedProgress; // tie completion to stored progress
+              const submissionRate = Math.max(0, Math.min(100, Math.floor(storedProgress * 0.8)));
+              const attendanceRate = Math.max(0, Math.min(100, Math.floor(storedProgress * 0.9)));
               
               return (
               <motion.div
@@ -876,7 +875,7 @@ const InstructorDashboard = () => {
                 </div>
 
                 {/* Secondary Actions */}
-                <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="grid grid-cols-4 gap-2 mt-2">
                   <button
                     onClick={() => showAssignmentsModal(course)}
                     className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
@@ -891,7 +890,7 @@ const InstructorDashboard = () => {
                     title="Post announcements"
                   >
                     <Bell className="w-4 h-4" />
-                    <span className="hidden sm:inline">News</span>
+                    <span className="hidden sm:inline">Announce</span>
                   </button>
                   <button
                     onClick={() => showMaterialsModal(course)}
@@ -900,6 +899,27 @@ const InstructorDashboard = () => {
                   >
                     <Upload className="w-4 h-4" />
                     <span className="hidden sm:inline">Files</span>
+                  </button>
+                  {/* Schedule/Schedule modal removed per user request */}
+                </div>
+
+                {/* Tertiary Actions */}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <button
+                    onClick={() => showExamsModal(course)}
+                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Manage exams"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span className="hidden sm:inline">Exams</span>
+                  </button>
+                  <button
+                    onClick={() => showVideosModal(course)}
+                    className="bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
+                    title="Manage videos"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span className="hidden sm:inline">Videos</span>
                   </button>
                 </div>
 
@@ -993,20 +1013,6 @@ const InstructorDashboard = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Course Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={newCourse.image_url}
-                    onChange={(e) => setNewCourse({ ...newCourse, image_url: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Optional: Add an image URL for the course card</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Course Time
                   </label>
                   <input
@@ -1016,7 +1022,33 @@ const InstructorDashboard = () => {
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none"
                     placeholder="Mon, Wed, Fri - 10:00 AM to 12:00 PM"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Example: Mon-Fri 9:00 AM or Weekends 2:00 PM</p>
+                  <p className="text-xs text-gray-500 mt-1">Example: Mon-Fri 9:00 AM - 5:00 PM</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Course Image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        handleCourseImageUpload(e.target.files[0]);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Choose an image for the course card (JPG, PNG, etc.)</p>
+                  {newCourse.image_url && (
+                    <div className="mt-3">
+                      <img
+                        src={newCourse.image_url}
+                        alt="Course preview"
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -1783,109 +1815,7 @@ const InstructorDashboard = () => {
         )}
       </AnimatePresence>
 
-      {/* Schedule/Timetable Modal */}
-      <AnimatePresence>
-        {showSchedule && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowSchedule(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-800">
-                  Course Schedule - {selectedCourse?.title}
-                </h3>
-                <button onClick={() => setShowSchedule(false)}>
-                  <X className="w-6 h-6 text-gray-600" />
-                </button>
-              </div>
-
-              {/* Add Schedule */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold mb-3">Add Class Timing</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={newSchedule.day_of_week}
-                    onChange={(e) => setNewSchedule({ ...newSchedule, day_of_week: parseInt(e.target.value) })}
-                    className="px-4 py-2 border rounded-lg"
-                  >
-                    <option value="0">Sunday</option>
-                    <option value="1">Monday</option>
-                    <option value="2">Tuesday</option>
-                    <option value="3">Wednesday</option>
-                    <option value="4">Thursday</option>
-                    <option value="5">Friday</option>
-                    <option value="6">Saturday</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Room Number"
-                    value={newSchedule.room}
-                    onChange={(e) => setNewSchedule({ ...newSchedule, room: e.target.value })}
-                    className="px-4 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="time"
-                    placeholder="Start Time"
-                    value={newSchedule.start_time}
-                    onChange={(e) => setNewSchedule({ ...newSchedule, start_time: e.target.value })}
-                    className="px-4 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="time"
-                    placeholder="End Time"
-                    value={newSchedule.end_time}
-                    onChange={(e) => setNewSchedule({ ...newSchedule, end_time: e.target.value })}
-                    className="px-4 py-2 border rounded-lg"
-                  />
-                </div>
-                <button
-                  onClick={handleAddSchedule}
-                  className="w-full mt-3 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700"
-                >
-                  Add Schedule
-                </button>
-              </div>
-
-              {/* Schedule List */}
-              <div>
-                <h4 className="font-semibold mb-3">Weekly Schedule</h4>
-                <table className="w-full border-collapse">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="border px-4 py-2 text-left">Day</th>
-                      <th className="border px-4 py-2 text-left">Time</th>
-                      <th className="border px-4 py-2 text-left">Room</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedules.map((schedule) => (
-                      <tr key={schedule.id}>
-                        <td className="border px-4 py-2">
-                          {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][schedule.day_of_week]}
-                        </td>
-                        <td className="border px-4 py-2">
-                          {schedule.start_time} - {schedule.end_time}
-                        </td>
-                        <td className="border px-4 py-2">{schedule.room || 'TBA'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Schedule feature removed per user request */}
 
       {/* Videos Modal */}
       <AnimatePresence>
