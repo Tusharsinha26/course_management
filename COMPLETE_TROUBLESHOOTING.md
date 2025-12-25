@@ -58,6 +58,7 @@ ALTER TABLE courses DISABLE ROW LEVEL SECURITY;
 - This proves RLS was blocking it
 - Go to Phase 3
 
+
 **Result B: Course creation still fails ❌**
 - Something else is wrong
 - This is NOT an RLS issue

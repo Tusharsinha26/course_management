@@ -795,6 +795,17 @@ const InstructorDashboard = () => {
                 transition={{ delay: index * 0.1 }}
                 className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-lg border border-gray-200 hover:shadow-2xl transition-shadow"
               >
+                {/* Course Image */}
+                {course.image_url && (
+                  <div className="mb-4 -mx-6 -mt-6">
+                    <img
+                      src={course.image_url}
+                      alt={course.title}
+                      className="w-full h-48 object-cover rounded-t-2xl"
+                    />
+                  </div>
+                )}
+
                 {/* Course Header */}
                 <div className="mb-6">
                   <div className="flex items-start justify-between mb-3">
@@ -879,10 +890,10 @@ const InstructorDashboard = () => {
                   <button
                     onClick={() => showAssignmentsModal(course)}
                     className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-1 text-sm font-medium transition-colors"
-                    title="Manage assignments"
+                    title="Manage assignments & submissions"
                   >
                     <FileText className="w-4 h-4" />
-                    <span className="hidden sm:inline">Tasks</span>
+                    <span className="hidden sm:inline">Assignments</span>
                   </button>
                   <button
                     onClick={() => showAnnouncementsModal(course)}
